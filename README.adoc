@@ -1,0 +1,139 @@
+= Raspberry Pi with Encrypted Root Partition
+:hide-uri-scheme:
+// Enable keyboard macros
+:experimental:
+:toc:
+:toclevels: 4
+:icons: font
+:note-caption: ℹ️
+:tip-caption: 💡
+:warning-caption: ⚠️
+:caution-caption: 🔥
+:important-caption: ❗
+
+// cspell:ignore pipx ensurepath Imager Flathub luks nvme mmcblk asciinema
+
+== Introduction
+
+[IMPORTANT]
+====
+Changing the passphrase is the first thing you should do after the installation
+has been completed.
+
+See: link:#change-the-passphrase-on-the-pi[]
+
+====
+
+This script will create an Ubuntu for Raspberry Pi image with an encrypted root partition for you.
+
+Supported images at the moment are: Ubuntu Server 24.04. While I wanted to have
+a consistent way for both server and desktop, I found that the way how the
+desktop image is configured with `oem-setup` does not work well with
+Cloud-Init. My recommendation therefore is to use the server image and install
+the desktop package.
+
+image:https://asciinema.org/a/XX0TK589crOk4Uhi09dakeT2s.svg["asciinema.org,link=https://asciinema.org/a/XX0TK589crOk4Uhi09dakeT2s,window\_blank,opts=nofollow]
+
+=== Motivation
+
+See: link:DOCS/FAQ.adoc#motivation[]
+
+// TODO
+=== TODO
+
+[NOTE]
+====
+
+[%collapsible]
+=====
+* Use a trap if some command fails in the script to clean up everything.
+* Investigate how to reduce image size further:
+  link:DOCS/FAQ.adoc#can-the-image-size-be-reduced-any-further[]
+* Document compression choice and sizes:
+  link:DOCS/FAQ.adoc#why-does-the-new-image-compress-so-poorly[]
+=====
+====
+
+== Using the script
+
+Requirements:
+
+* Packages: `apt install -y parted kpartx cryptsetup-bin rsync`
+* Packages: `apt install -y binfmt-support qemu-user-static`
+** These are required when you execute the script on a different architecture.
+   Raspberry Pi uses `arm64`, PCs use `amd64`.
+* Raspberry Pi Imager -- I recommend you get it from Flathub
+  https://flathub.org/apps/org.raspberrypi.rpi-imager
+* You need
+  https://github.com/charmbracelet/gum?tab=readme-ov-file#installation[gum]
+  to run this script in interactive mode.
++
+[TIP]
+====
+
+[%collapsible]
+=====
+** What is `gum`? It provides a simple way to create interactive scripts with
+   forms.
+** Just download the binary and put it somewhere on your `$PATH`.
+** If you have not used pipx before do `apt install pipx && pipx ensurepath`
+   and put the `gum` binary under `$HOME/.local/bin/`. pipx has nothing to do
+   with any of this here, I just prefer `$HOME/.local/bin/` over `$HOME/bin/`
+   and instructing users to modify some of their shell configuration files in a
+   few different ways.
+=====
+====
+
+// TODO: video here?
+.Running the script:
+[source,bash]
+----
+# Interactive mode
+./run
+
+# Unattended modes
+./run rpi4
+./run rpi5
+----
+
+== Writing the image with Raspberry Pi Imager
+
+When the script has finished you can open Raspberry Pi Imager and select
+*custom image*.
+
+Once the image has been written by Raspberry Pi Imager, you can copy your
+`user-data` to the boot partition (`system-boot`). The script is not intended
+to include customized user data to images. That may be convenient, but is
+considered out of scope and would introduce the issue of dealing with unknown
+or "tainted" images.
+
+I provided examples in the link:cloud-init/[] folder.
+
+[IMPORTANT]
+====
+Review the example content carefully and only include what you need and what
+you understand. I provided a few things to show what can be achieved when using
+Cloud-Init on desktops.
+====
+
+== Change the passphrase on the Pi
+
+.Change the LUKS passphrase after first boot:
+[source,bash]
+----
+# Get and overview and find your root volume (/)
+# The device you are looking for should be something like:
+# sdX2, mmcblkXp2, nvme0nXp2
+lsblk --paths
+
+# Change the passphrase
+sudo cryptsetup luksChangeKey ${YOUR_ROOT_DEVICE}
+----
+
+// TODO: Suggest to use FIDO2 keys
+
+// TODO: Not ready yet.
+// To achieve a higher level or security you can still create your own image with
+// the script from your own computer. I offer these images for convenience and for
+// situations where sudo access chroot and mounting images may be unavailable or
+// impractical.

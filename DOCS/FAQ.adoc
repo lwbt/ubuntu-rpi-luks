@@ -1,0 +1,349 @@
+= Frequently Asked Questions
+:hide-uri-scheme:
+// Enable keyboard macros
+:experimental:
+:toc:
+:toclevels: 4
+:icons: font
+:note-caption: ℹ️
+:tip-caption: 💡
+:warning-caption: ⚠️
+:caution-caption: 🔥
+:important-caption: ❗
+
+// cspell:ignore zstd nproc plymouth cmdline Datasource Asciinema Dracut dropbear Imager zram luks cryptroot raspi NVME
+
+== General
+
+=== Motivation
+
+This project should:
+
+* Provide images with an encrypted root volume
+* Provide a way for consistent automation and customization on desktop and
+  server
+
+Future goals:
+
+* Create images with GitHub Actions (see below)
+** The script was written to be executed unattended and interactively
+** Current blockers:
+*** There is no ideal way to "just" create a desktop image which can be
+    provided a Cloud-Init answer file for initial provisioning. The desktop
+    image is configured to run `oem-config` from the older Ubiquity Ubuntu
+    installer, and converting the server image takes over an hour.
+*** The images have duplicates in 'ubuntu.sources' which extends the time of
+    the entire process.
+*** While the server image could be built with GitHub Actions, the any desktop image exceeds the storage space available on public hosted Runners.
+*** I need to investigate or get feedback about the risks of sharing encrypted images with a known passphrase
+    link:#what-are-the-risks-of-sharing-encrypted-images-with-a-known-initial-passphrase[]
+
+Resources and inspiration:
+
+* https://github.com/ViRb3/pi-encrypted-boot-ssh[] --
+  Essentially I turned these instructions into a script.
+  Some of the instructions did not directly apply to Ubuntu.
+  I skipped the SSH remote unlock in favor of using FIDO2 keys.
+  TPM with Secure Boot is not supported on Raspberry Pi at the moment.
+
+=== Support
+
+I don't offer any support for this free time project.
+
+If you find something to work on, to improve and send me a pull request, I will gladly accept it. For most other things, I will have to see if I find time.
+
+My goal is to provide a script or images for LTS releases when the get released.
+
+I'm only interested releases from 24.04 onward and which are
+https://wiki.ubuntu.com/Releases[currently supported].
+
+== Resources & Research
+
+=== Screen casts and recordings
+
+I created recordings with Asciinema, these have been edited to reduce file size
+and length. I assume the nobody wants to look at the package manager and
+compression tools slowly moving towards completion. I chose to keep some of the
+interesting error messages, but I removed the messages about duplicates in
+`ubuntu.sources`.
+
+You can find the recordings here:
+
+* link:assets/[]
+* https://asciinema.org/a/lZmHTjSBZtkRUNshCrl2P3CUZ[2024-05-15_134103_desktop]
+* https://asciinema.org/a/TOIGiiGLYN1OyCm5yOSAMfCyE[2024-05-15_141805_server]
+* https://asciinema.org/a/XX0TK589crOk4Uhi09dakeT2s[2024-05-15_144201_server+desktop]
+
+=== Why does the new image compress so poorly?
+
+Because encrypted bytes don't compress very well.
+
+What I tried:
+
+* Investigate how much free space the images contain:
+** Desktop: 2.3 GB free
+** Server: 800 MB free
+* Find a suitable compression algorithm and compression level:
++
+[source,bash]
+----
+time zstd -15 --keep --threads=$(nproc) # Compresses to 73% and takes 2 minutes
+time zstd -19 --keep --threads=$(nproc) # Compresses to 72% and takes 12 minutes
+----
+
+=== Can the image size be reduced any further?
+
+The newly created desktop image is now almost as big as RHEL AMD64 (3GB -> 9GB -> 7GB).
+This makes it impractical to build in GitHub hosted runners and to offer as download.
+
+What I tried:
+
+* `resize2fs -pM` had no effect
+
+Current status:
+
+* We already created a new filesystem on the partition after extending it.
+  Find the right size and avoid making things more complex before implementing LVM again.
+
+=== Where does `/boot/firmware/README` come from?
+
+I have given up and instead include a copy here.
+link:README_boot_firmware_server.md[]
+
+The format is not entirely compliant Markdown, but I found that easier to read.
+
+What I tried:
+
+* `apt-file search README` in chroot with many variations
+* Searching in packages:
+** https://packages.ubuntu.com/noble/rpiboot
+** https://packages.ubuntu.com/noble/u-boot-rpi
+** https://packages.ubuntu.com/noble/raspi-config
+** https://packages.ubuntu.com/noble/linux-firmware-raspi
+*** https://github.com/raspberrypi/firmware
+*** https://code.launchpad.net/ubuntu/+source/linux-firmware-raspi
+**** https://git.launchpad.net/ubuntu/+source/linux-firmware-raspi
+
+=== What are the risks of sharing encrypted images with a known initial passphrase?
+
+Questions:
+
+* What are the risks of sharing images of encrypted file systems with a known initial passphrase?
+* How does this impact security?
+* What can be done to mitigate the risks?
+* What are the weak points?
+
+=== Using Cloud-Init
+
+* https://cloudinit.readthedocs.io/en/latest/howto/rerun_cloud_init.html#how-to-partially-re-run-cloud-init
+* https://wiki.archlinux.org/title/cloud-init
+* https://stackoverflow.com/questions/23065673/how-to-re-run-cloud-init-without-reboot
+
+Validation:
+
+* https://cloudinit.readthedocs.io/en/latest/howto/debug_user_data.html
+  `cloud-init schema --config-file test.yml --annotate`
+
+== Publish images through GitHub Actions?
+
+=== Do I have enough space to create the images on a GitHub Actions runner?
+
+Public and private runners offer 14 GB of SSD storage.
+Is that the amount of available space or the entire disk?
+
+For desktop images I would need to use a self hosted runner as the uncompressed
+images are 8GB and above.
+
+Documentation:
+https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories[About GitHub-hosted runners]
+
+=== How to `sudo` in runners?
+
+Examples indicate that `sudo` can be executed without a password or similar requirements.
+
+Documentation:
+https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/customizing-github-hosted-runners#installing-software-on-ubuntu-runners[Customizing GitHub-hosted runners]
+
+=== Alternatives
+
+// TODO: Link to this project.
+* There was a project that used packer
+** I took a first look at it and found that it simply uses chroot, like it is done here.
+   I'm not sure which workflow is simpler.
+   I will take another look at it when I have time to decide which features are
+   essential and which workflow is the most robust and easy to maintain.
+   Considering the current state of Open Source, a script might still be better
+   than a binary from a company that wants to increase its share holder value.
+// TODO: Links to similar projects?
+
+== Guidance
+
+=== Which desktop option to choose?
+
+* `preinstalled-desktop` When you just want the typical installation with additional encryption.
+* `preinstalled-server...+desktop` When you are looking for automation with Cloud-Init.
+
+=== How can I avoid downloading all the packages again and again?
+
+Use a local package cache like `apt-cacher-ng`.
+
+=== Why do you use a script after first boot to configure dropbear?
+
+I want to avoid publishing and sharing images with hard coded public keys.
+Therefore my solution is to wait for Cloud-Init, where every user can put their
+public keys and where Raspberry Pi Imager and other tools and examples can help
+a user, to supply the public keys and then configure dropbear.
+
+=== Activation of `zram-config`
+
+while it seems to be not active any more on desktop and server images, I
+included functionality to install and activate it in the script.
+
+=== Connecting to dropbear to unlock LUKS
+
+You use the root account and the IP address you configured. Ideally your local DNS is configured that it will always give the client the same IP address.
+
+[source,bash]
+----
+$ ssh root@192.168.0.218
+Please unlock disk pi-root-decrypted:
+cryptsetup: pi-root-decrypted set up successfully
+Connection to 192.168.0.218 closed.
+----
+
+If dropbear is not configured to execute `cryptroot-unlock` on login then it
+might look like this:
+
+[source,bash]
+----
+$ ssh root@192.168.0.218
+To unlock root partition, and maybe others like swap, run `cryptroot-unlock`.
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# cryptroot-unlock
+Please unlock disk pi-root-decrypted:
+cryptsetup: pi-root-decrypted set up successfully
+# Connection to 192.168.0.218 closed by remote host.
+Connection to 192.168.0.218 closed.
+----
+
+To avoid issues with strict SSH key checking I have this in my `${HOME}/.ssh/config`:
+
+----
+Host pi.luks
+  User root
+  Hostname 192.168.0.218
+  # Use a different known_hosts file to avoid issues with strict host key
+  # checking
+  UserKnownHostsFile %d/.ssh/known_hosts_luks
+----
+
+=== How long does installation of the desktop take?
+
+On a Raspberry Pi 4 with 4 GB RAM and a SATA M.2 2TB WD SSD (no chroot):
+
+----
+time sudo apt -y install language-pack-en pemmican-desktop ubuntu-desktop ubuntu-desktop-raspi ubuntu-raspi-settings-desktop
+
+Need to get 651 MB of archives.
+After this operation, 2332 MB of additional disk space will be used.
+
+real  69m42.821s
+----
+
+While I have no fine grained data about downloading and installing packages,
+downloading the packages was fast, installing was not.
+
+On T580 with NVME SSD:
+
+----
+real  52m31.206s
+----
+
+On P14s with NVME SSD.
+
+----
+real  51m12.024s
+----
+
+It looks like it is not getting faster on faster hardware.
+
+== Known issues
+
+=== Slow speeds on some storage devices
+
+It might not be related to encryption or anything from this project in general.
+
+Some storage devices may give poor performance and even lead to system lockups
+on Raspberry Pi. The cause is that some controllers advertise UASP but don't
+handle it properly. You can use `usb-storage.quirks` to use USB-BOT mode.
+
+Resources:
+
+* https://vielmetti.typepad.com/logbook/2021/11/usb-storagequirks-setting-on-raspberry-pi-to-avoid-uas-issues-and-system-lockup.html[]
+** https://forums.raspberrypi.com/viewtopic.php?f=28&t=245931[Tutorial]
+** https://linux-sunxi.org/USB/UAS#UASP_capable_chipsets_in_disk_enclosures[]
+* https://smitchell.github.io/how-to-bind-to-the-right-usb-storage-driver[]
+
+=== OEM Configuration and APT is slow
+
+There are some issues in APT which occur during OEM configuration and when
+using APT in `chroot`.
+
+* link:DOCS/assets/oem-config.log[]
+* https://bugs.launchpad.net/ubuntu/+bug/2065618
+
+=== When the desktop gets installed it does not show the boot splash?
+
+I know that you can press ESC to show console output, but I prefer to keep it like this for now before diving deeper and fix every tiny detail. The plymouth packages themselves are properly installed.
+
+I tried to fix it by adding `quiet splash` at the end of `/boot/firmware/cmdline.txt`, but that did not help.
+
+=== The installation completed and then the system rebooted while I was using the desktop?
+
+The desktop will reboot up to 2 times when using Cloud-Init. It's best to not
+start working on the desktop right away when you see the login screen. The
+process also takes care of growing the file system. Before this process is not
+complete you will only have less than 1 GB of free space.
+
+You can monitor Cloud-Init's progress with:
+
+`tail -f /var/log/cloud-init-output.log`
+
+or
+
+`ssh ${your_host} 'tail -f /var/log/cloud-init-output.log`
+
+On completion you will see the following entry:
+
+----
+Cloud-init v. 24.1.3-0ubuntu3 finished at Wed, 01 May 2024 17:08:04 +0000. Datasource DataSourceNone.  Up 2916.67 seconds
+----
+
+=== Desktop image is broken after removal of `oem-config`
+
+While the code is still in the script, you should not activate and use these
+sections. This was my first attempt before I took the other option and added
+functionality to convert the server image into a desktop image.
+
+Using the bigger desktop image and only making a few minor changes would have
+saved a lot of time, but while `oem-config` is part of the image it won't be so
+easy.
+
+Also Cloud-Init user-data is currently ignored.
+
+=== `oem-config` removes `cryptsetup-initramfs`
+
+This should have been resolved by executing `apt-mark manual
+cryptsetup-initramfs` by the script. If `oem-setup` still suggests to remove
+this or any other packages, you must decline this action by unchecking the
+checkbox and only then clicking next.
+
+=== Using FIDO2 keys with Dracut does not work for decrypting LUKS
+
+Installing Dracut to use FIDO2 keys removes the 'flash-kernel' package which is
+responsible for updating the boot partition with `initrd.img` and kernel image.
+I tried creating Dracut hooks, but I have had no success yet.

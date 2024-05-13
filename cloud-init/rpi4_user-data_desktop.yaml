@@ -1,0 +1,279 @@
+#cloud-config
+# See the autoinstall documentation at:
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+#
+# cspell:ignore dconf-editor hunspell ibus hangul libpinyin mozc mythes runcmd github pulseaudio listchanges mailutils dconf gnome-shell-extension-prefs skel cryptsetup
+# cspell:ignore gecos dialout netdev plugdev cdrom gpio localectl keymap setupcon
+hostname: example-host
+manage_etc_hosts: true
+packages:
+  - avahi-daemon
+  # BEGIN CUSTOM PACKAGES
+  - curl
+  - dconf-editor
+  - git
+  - gnome-shell-extension-prefs
+  - gnome-tweaks
+  - pipx
+  - pulseaudio-utils
+  - ubuntu-advantage-tools
+  - vim
+  # Selection from normal desktop
+  - deja-dup
+  - file-roller
+  - hyphen-en-us
+  - mythes-en-us
+  - simple-scan
+  # Adds flatpak and gnome software to ubuntu as well
+  - gnome-software-plugin-flatpak
+  # Language and additional input support
+  - hunspell-de-de
+  - hyphen-de
+  - ibus-chewing
+  - ibus-hangul
+  - ibus-libpinyin
+  - ibus-mozc
+  - mozc-utils-gui
+  - mythes-de
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades
+  - apt-listchanges
+  - mailutils
+  - unattended-upgrades
+  # Cosmetics
+  - breeze-cursor-theme
+apt:
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+users:
+  - name: yfn
+    gecos: Your Full Name
+    groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+    lock_passwd: false
+    # cspell:disable
+    passwd: $5$.abcdef$__password_hash_created_by_rpi_imager__
+    # cspell:enable
+    shell: /bin/bash
+    # cspell:disable
+    ssh_authorized_keys:
+      - "ssh-ed25519 your_key_here"
+      # cspell:enable
+      #sudo: ALL=(ALL) NOPASSWD:ALL
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+timezone: Europe/Berlin
+runcmd:
+  - localectl set-x11-keymap "us" pc105
+  - setupcon -k --force || true
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades 1/2: Install all updates automatically.
+  - >
+    sudo sed -i 's/\/\/\(\t"${distro_id}:${distro_codename}-updates";\)/  \1/' "/etc/apt/apt.conf.d/50unattended-upgrades";
+
+  # Unattended upgrades 2/2: Send reports about installed updates to root mailbox.
+  - >
+    sudo sed -i 's/\/\/\(Unattended-Upgrade::Mail \)"";/\1"root";/' "/etc/apt/apt.conf.d/50unattended-upgrades"
+
+  # Install software for Argon One case.
+  - >
+    curl "https://download.argon40.com/argon1.sh" | /bin/bash -s
+
+  # Configure dropbear for initramfs.
+  - >
+    sudo -u $( getent passwd 1000 | cut -f 1 -d ":") /usr/local/bin/dropbear-luks.sh
+
+write_files:
+  # Suspend System to RAM when pressing the power button.
+  # Without this, the setting in Gnome does not work.
+  # cspell:ignore logind
+  - path: "/etc/systemd/logind.conf"
+    append: true
+    content: |
+      #
+      # CUSTOMIZED
+      #
+      # Suspend System to RAM when pressing the power button.
+      HandlePowerKey=suspend
+  # Suppress repetitive welcome message. Known content:
+  - path: "/etc/skel/.config/gnome-initial-setup-done"
+    content: |
+      yes
+  # Add ~/.local/bin to PATH, required at least for pipx.
+  - path: "/etc/skel/.bashrc"
+    append: true
+    content: |
+      #
+      # CUSTOMIZED
+      #
+      # Created by `pipx` on 2024-04-28
+      export PATH="${PATH}:${HOME}/.local/bin"
+  # Post-Installation Setup for users part 1/2.
+  # cspell:ignore scriptslwbt ddns dfsd gext ucfq ssh-keygen
+  - path: "/etc/skel/post_install_setup.sh"
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      echo -e "\nOVERVIEW\n"
+
+      echo "- GNOME CONFIGURATION"
+      echo "- GNOME EXTENSIONS"
+      echo "- CREATE SSH KEYS"
+
+      echo -e "\nPlease, plug in your power cable before you continue.\n"
+
+      read -rp "> Continue with GNOME CONFIGURATION? (Y/n) " answer
+      if [[ ! "${answer}" =~ (^[Nn]|^[Nn]"o") ]]; then
+        # Apply Gnome configuration
+        dconf load / < "$HOME/dconf_load.ini"
+
+        rm -v "$HOME/dconf_load.ini"
+        echo -e "Note: You can find the main copy of this file in '/etc/skel/'.\n"
+      fi
+
+      read -rp "> Continue with GNOME EXTENSIONS? (Y/n) " answer
+      if [[ ! "${answer}" =~ (^[Nn]|^[Nn]"o") ]]; then
+        # Install helper tool gnome-extensions-cli
+        pipx install gnome-extensions-cli
+
+        # Install extension by UUID
+        gext install date-menu-formatter@marcinjakubowski.github.com
+        echo -e "Log out and back in to activate extensions."
+      fi
+
+      read -rp "> Continue with CREATE SSH KEYS? (Y/n) " answer
+      if [[ ! "${answer}" =~ (^[Nn]|^[Nn]"o") ]]; then
+        key_type="ed25519"
+        id_file="${HOME}/.ssh/id_${key_type}_$(date +%F)"
+
+        ssh-keygen \
+          -t "${key_type}" \
+          -C "${USER}@${HOSTNAME}-$(date +%F)" \
+          -f "${id_file}" \
+          | head -n 5 \
+          | tail -n 3
+      fi
+
+      rm -v "$HOME/post_install_setup.sh"
+  # Post-Installation Setup for users part 2/2.
+  # cspell:ignore weekdate luxon
+  - path: "/etc/skel/dconf_load.ini"
+    content: |
+      [org/gnome/desktop/calendar]
+      show-weekdate=true
+
+      [org/gnome/desktop/input-sources]
+      sources=[('xkb', 'us+intl'), ('xkb', 'us+euro'), ('xkb', 'de'), ('ibus', 'mozc-jp'), ('ibus', 'hangul'), ('xkb', 'us+rus')]
+
+      [org/gnome/desktop/interface]
+      color-scheme='prefer-dark'
+      cursor-theme='breeze_cursors'
+      gtk-theme='Yaru-dark'
+      icon-theme='Yaru-dark'
+
+      [org/gnome/desktop/session]
+      idle-delay=uint32 0
+
+      [org/gnome/mutter]
+      attach-modal-dialogs=false
+      workspaces-only-on-primary=false
+
+      [org/gnome/settings-daemon/plugins/color]
+      night-light-enabled=true
+      night-light-last-coordinates=(50.981371659688151, 11.0347472)
+      night-light-temperature=uint32 3700
+
+      [org/gnome/settings-daemon/plugins/power]
+      power-button-action='suspend'
+
+      [org/gnome/shell/extensions/dash-to-dock]
+      multi-monitor=true
+      show-mounts-network=false
+      show-mounts-only-mounted=true
+      show-trash=false
+
+      [org/gnome/shell/extensions/date-menu-formatter]
+      formatter='01_luxon'
+      pattern="EEEE, MMMM d  HH:mmZ y-'CW'WW"
+      text-align='center'
+
+      [org/gnome/shell/extensions/ding]
+      show-home=false
+
+      [org/gnome/shell/extensions/tiling-assistant]
+      disable-tile-groups=true
+      enable-tiling-popup=false
+
+      [org/gnome/system/location]
+      enabled=true
+
+      [org/gnome/TextEditor]
+      indent-style='space'
+      show-line-numbers=true
+      show-right-margin=true
+      tab-width=uint32 2
+
+      [system/locale]
+      region='en_US.UTF-8'
+
+      [org/gnome/desktop/background]
+      picture-uri='file:///usr/share/backgrounds/ubuntu-default-dynamic.xml'
+      picture-uri-dark='file:///usr/share/backgrounds/ubuntu-default-dynamic.xml'
+
+      [org/gnome/desktop/screensaver]
+      picture-uri='file:///usr/share/backgrounds/ubuntu-default-dynamic.xml'
+  # Dynamic wallpaper part 1/2.
+  # cspell:ignore starttime maoschanz
+  - path: "/usr/share/backgrounds/ubuntu-default-dynamic.xml"
+    content: |
+      <!-- Generated by com.github.maoschanz.DynamicWallpaperEditor -->
+      <background>
+        <starttime>
+          <year>2018</year>
+          <month>1</month>
+          <day>1</day>
+          <hour>6</hour>
+          <minute>0</minute>
+          <second>0</second>
+        </starttime>
+
+        <static>
+          <file>/usr/share/backgrounds/warty-final-ubuntu.png</file>
+          <duration>46800.0</duration>
+        </static>
+
+        <transition type="overlay">
+          <duration>3600.0</duration>
+          <from>/usr/share/backgrounds/warty-final-ubuntu.png</from>
+          <to>/usr/share/backgrounds/ubuntu-wallpaper-d.png</to>
+        </transition>
+
+        <static>
+          <file>/usr/share/backgrounds/ubuntu-wallpaper-d.png</file>
+          <duration>32400.0</duration>
+        </static>
+
+        <transition type="overlay">
+          <duration>3600.0</duration>
+          <from>/usr/share/backgrounds/ubuntu-wallpaper-d.png</from>
+          <to>/usr/share/backgrounds/warty-final-ubuntu.png</to>
+        </transition>
+      </background>
+  # Dynamic wallpaper part 2/2.
+  - path: "/usr/share/gnome-background-properties/ubuntu-default-dynamic-meta.xml"
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
+      <wallpapers>
+        <wallpaper deleted="false">
+          <name>Ubuntu Default Dynamic</name>
+          <filename>/usr/share/backgrounds/ubuntu-default-dynamic.xml</filename>
+          <options>zoom</options>
+        </wallpaper>
+      </wallpapers>
+power_state:
+  delay: now
+  mode: reboot

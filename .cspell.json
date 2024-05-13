@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "dictionaries": [
+    "project-words",
+    "gaming-terms"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "addWords": true,
+      "name": "project-words",
+      "path": "./project-words.txt"
+    }
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "/project-words.txt"
+  ],
+  "import": [
+    "@cspell/dict-bash/cspell-ext.json",
+    "@cspell/dict-companies/cspell-ext.json",
+    "@cspell/dict-data-science/cspell-ext.json",
+    "@cspell/dict-de-de/cspell-ext.json",
+    "@cspell/dict-docker/cspell-ext.json",
+    "@cspell/dict-gaming-terms/cspell-ext.json",
+    "@cspell/dict-git/cspell-ext.json",
+    "@cspell/dict-k8s/cspell-ext.json",
+    "@cspell/dict-powershell/cspell-ext.json",
+    "@cspell/dict-software-terms/cspell-ext.json",
+    "@cspell/dict-vim/cspell-ext.json",
+    "@cspell/dict-win32/cspell-ext.json"
+  ],
+  "version": "0.2"
+}

@@ -1,0 +1,104 @@
+#cloud-config
+# See the autoinstall documentation at:
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+#
+# cspell:ignore dconf-editor hunspell ibus hangul libpinyin mozc mythes runcmd github pulseaudio listchanges mailutils dconf gnome-shell-extension-prefs skel cryptsetup
+# cspell:ignore gecos dialout netdev plugdev cdrom gpio localectl keymap setupcon
+hostname: example-host
+manage_etc_hosts: true
+packages:
+  - avahi-daemon
+  # BEGIN CUSTOM PACKAGES
+  - curl
+  - git
+  - pipx
+  - ubuntu-advantage-tools
+  - vim
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades
+  - apt-listchanges
+  - mailutils
+  - unattended-upgrades
+apt:
+  conf: |
+    Acquire {
+      Check-Date "false";
+    };
+users:
+  - name: yfn
+    gecos: Your Full Name
+    groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo
+    lock_passwd: false
+    # cspell:disable
+    passwd: $5$.abcdef$__password_hash_created_by_rpi_imager__
+    # cspell:enable
+    shell: /bin/bash
+    # cspell:disable
+    ssh_authorized_keys:
+      - "ssh-ed25519 your_key_here"
+      # cspell:enable
+      #sudo: ALL=(ALL) NOPASSWD:ALL
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+timezone: Europe/Berlin
+runcmd:
+  - localectl set-x11-keymap "us" pc105
+  - setupcon -k --force || true
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades 1/2: Install all updates automatically.
+  - >
+    sudo sed -i 's/\/\/\(\t"${distro_id}:${distro_codename}-updates";\)/  \1/' "/etc/apt/apt.conf.d/50unattended-upgrades";
+
+  # Unattended upgrades 2/2: Send reports about installed updates to root mailbox.
+  - >
+    sudo sed -i 's/\/\/\(Unattended-Upgrade::Mail \)"";/\1"root";/' "/etc/apt/apt.conf.d/50unattended-upgrades"
+
+  # Install software for Argon One case.
+  - >
+    curl "https://download.argon40.com/argon1.sh" | /bin/bash -s
+
+  # Configure dropbear for initramfs.
+  - >
+    sudo -u $( getent passwd 1000 | cut -f 1 -d ":") /usr/local/bin/dropbear-luks.sh
+
+write_files:
+  # Suspend System to RAM when pressing the power button.
+  # Without this, the setting in Gnome does not work.
+  # cspell:ignore logind
+  - path: "/etc/systemd/logind.conf"
+    append: true
+    content: |
+      #
+      # CUSTOMIZED
+      #
+      # Suspend System to RAM when pressing the power button.
+      HandlePowerKey=suspend
+  # Post-Installation Setup for users part 1/2.
+  # cspell:ignore scriptslwbt ddns dfsd gext ucfq ssh-keygen
+  - path: "/etc/skel/post_install_setup.sh"
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      echo -e "\nOVERVIEW\n"
+
+      echo "- CREATE SSH KEYS"
+
+      read -rp "> Continue with CREATE SSH KEYS? (Y/n) " answer
+      if [[ ! "${answer}" =~ (^[Nn]|^[Nn]"o") ]]; then
+        key_type="ed25519"
+        id_file="${HOME}/.ssh/id_${key_type}_$(date +%F)"
+
+        ssh-keygen \
+          -t "${key_type}" \
+          -C "${USER}@${HOSTNAME}-$(date +%F)" \
+          -f "${id_file}" \
+          | head -n 5 \
+          | tail -n 3
+      fi
+
+      rm -v "$HOME/post_install_setup.sh"
+power_state:
+  delay: now
+  mode: reboot
