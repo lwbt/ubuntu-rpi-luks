@@ -166,8 +166,9 @@ https://docs.github.com/en/actions/using-github-hosted-runners/about-github-host
 
 === Alternatives
 
-// TODO: Link to this project.
-* There was a project that used packer
+* There is a project to provision with Packer:
+  https://github.com/solo-io/packer-plugin-arm-image
+** https://medium.com/@source4learn/how-to-build-a-custom-raspberry-pi-os-image-using-packer-da83be261687
 ** I took a first look at it and found that it simply uses chroot, like it is done here.
    I'm not sure which workflow is simpler.
    I will take another look at it when I have time to decide which features are
