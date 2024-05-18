@@ -47,6 +47,9 @@ See: link:DOCS/FAQ.adoc#motivation[]
 [%collapsible]
 =====
 * Use a trap if some command fails in the script to clean up everything.
+* Installations of snap-based applications are skipped in chroot and should be
+  installed through Cloud-Init
+** Known applications: Firefox, Thunderbird
 * Investigate how to reduce image size further:
   link:DOCS/FAQ.adoc#can-the-image-size-be-reduced-any-further[]
 * Document compression choice and sizes:
@@ -84,7 +87,6 @@ Requirements:
 =====
 ====
 
-// TODO: video here?
 .Running the script:
 [source,bash]
 ----
