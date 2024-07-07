@@ -4,6 +4,7 @@
 #
 # cspell:ignore dconf-editor hunspell ibus hangul libpinyin mozc mythes runcmd github pulseaudio listchanges mailutils dconf gnome-shell-extension-prefs skel cryptsetup
 # cspell:ignore gecos dialout netdev plugdev cdrom gpio localectl keymap setupcon
+# cspell:ignore autoinstall avahi pipx NOPASSWD dropbear getent luks distro Yaru flatpak
 hostname: example-host
 manage_etc_hosts: true
 packages:
@@ -68,22 +69,13 @@ timezone: Europe/Berlin
 runcmd:
   - localectl set-x11-keymap "us" pc105
   - setupcon -k --force || true
-  # https://wiki.debian.org/UnattendedUpgrades
-  # Unattended upgrades 1/2: Install all updates automatically.
-  - >
-    sudo sed -i 's/\/\/\(\t"${distro_id}:${distro_codename}-updates";\)/  \1/' "/etc/apt/apt.conf.d/50unattended-upgrades";
-
-  # Unattended upgrades 2/2: Send reports about installed updates to root mailbox.
-  - >
-    sudo sed -i 's/\/\/\(Unattended-Upgrade::Mail \)"";/\1"root";/' "/etc/apt/apt.conf.d/50unattended-upgrades"
-
   # Install software for Argon One case.
   - >
     curl "https://download.argon40.com/argon1.sh" | /bin/bash -s
 
   # Configure dropbear for initramfs.
   - >
-    sudo -u $( getent passwd 1000 | cut -f 1 -d ":") /usr/local/bin/dropbear-luks.sh
+    sudo -u $( getent passwd 1000 | cut -f 1 -d ":" ) /usr/local/bin/dropbear-luks.sh
 
 write_files:
   # Suspend System to RAM when pressing the power button.
@@ -97,6 +89,30 @@ write_files:
       #
       # Suspend System to RAM when pressing the power button.
       HandlePowerKey=suspend
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades 1/2: Install all updates automatically.
+  # Unattended upgrades 2/2: Send reports about installed updates to root mailbox.
+  - path: "/etc/apt/apt.conf.d/52unattended-upgrades-local"
+    permissions: '0644'
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}";
+              "${distro_id}:${distro_codename}-security";
+              // Extended Security Maintenance; doesn't necessarily exist for
+              // every release and this system may not have it installed, but if
+              // available, the policy for updates is such that unattended-upgrades
+              // should also install from here by default.
+              "${distro_id}ESMApps:${distro_codename}-apps-security";
+              "${distro_id}ESM:${distro_codename}-infra-security";
+              // MODIFIED: Install all updates automatically.
+              "${distro_id}:${distro_codename}-updates";
+      //      "${distro_id}:${distro_codename}-updates";
+      //      "${distro_id}:${distro_codename}-proposed";
+      //      "${distro_id}:${distro_codename}-backports";
+      };
+
+      // Send reports about installed updates to root mailbox.
+      Unattended-Upgrade::Mail "root";
   # Suppress repetitive welcome message. Known content:
   - path: "/etc/skel/.config/gnome-initial-setup-done"
     content: |
