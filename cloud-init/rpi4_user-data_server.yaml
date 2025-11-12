@@ -2,11 +2,12 @@
 # See the autoinstall documentation at:
 # https://cloudinit.readthedocs.io/en/latest/reference/modules.html
 #
-# cspell:ignore dconf-editor hunspell ibus hangul libpinyin mozc mythes runcmd github pulseaudio listchanges mailutils dconf gnome-shell-extension-prefs skel cryptsetup
-# cspell:ignore gecos dialout netdev plugdev cdrom gpio localectl keymap setupcon
-# cspell:ignore autoinstall avahi pipx NOPASSWD dropbear getent luks distro
 hostname: example-host
 manage_etc_hosts: true
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+timezone: Europe/Berlin
 packages:
   - avahi-daemon
   # BEGIN CUSTOM PACKAGES
@@ -39,10 +40,6 @@ users:
       - "ssh-ed25519 your_key_here"
       # cspell:enable
       #sudo: ALL=(ALL) NOPASSWD:ALL
-package_update: true
-package_upgrade: true
-package_reboot_if_required: true
-timezone: Europe/Berlin
 runcmd:
   - localectl set-x11-keymap "us" pc105
   - setupcon -k --force || true
@@ -69,20 +66,19 @@ write_files:
   # https://wiki.debian.org/UnattendedUpgrades
   # Unattended upgrades 1/2: Install all updates automatically.
   # Unattended upgrades 2/2: Send reports about installed updates to root mailbox.
-  - path: "/etc/apt/apt.conf.d/52unattended-upgrades-local"
-    permissions: '0644'
+  - path: "/etc/apt/apt.conf.d/52unattended-upgrades-local.conf"
     content: |
       Unattended-Upgrade::Allowed-Origins {
-              "${distro_id}:${distro_codename}";
-              "${distro_id}:${distro_codename}-security";
-              // Extended Security Maintenance; doesn't necessarily exist for
-              // every release and this system may not have it installed, but if
-              // available, the policy for updates is such that unattended-upgrades
-              // should also install from here by default.
-              "${distro_id}ESMApps:${distro_codename}-apps-security";
-              "${distro_id}ESM:${distro_codename}-infra-security";
-              // MODIFIED: Install all updates automatically.
-              "${distro_id}:${distro_codename}-updates";
+            "${distro_id}:${distro_codename}";
+            "${distro_id}:${distro_codename}-security";
+            // Extended Security Maintenance; doesn't necessarily exist for
+            // every release and this system may not have it installed, but if
+            // available, the policy for updates is such that unattended-upgrades
+            // should also install from here by default.
+            "${distro_id}ESMApps:${distro_codename}-apps-security";
+            "${distro_id}ESM:${distro_codename}-infra-security";
+            // MODIFIED: Install all updates automatically.
+            "${distro_id}:${distro_codename}-updates";
       //      "${distro_id}:${distro_codename}-updates";
       //      "${distro_id}:${distro_codename}-proposed";
       //      "${distro_id}:${distro_codename}-backports";
@@ -91,9 +87,8 @@ write_files:
       // Send reports about installed updates to root mailbox.
       Unattended-Upgrade::Mail "root";
   # Post-Installation Setup for users part 1/2.
-  # cspell:ignore scriptslwbt ddns dfsd gext ucfq ssh-keygen
   - path: "/etc/skel/post_install_setup.sh"
-    permissions: '0755'
+    permissions: "0755"
     content: |
       #!/bin/bash
 

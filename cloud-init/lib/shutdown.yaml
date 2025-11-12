@@ -1,0 +1,3 @@
+power_state:
+  delay: now
+  mode: reboot

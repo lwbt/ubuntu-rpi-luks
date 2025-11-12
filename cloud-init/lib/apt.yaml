@@ -1,0 +1,26 @@
+autoinstall:
+  apt:
+    disable_components: []
+    fallback: offline-install
+    geoip: true
+    mirror-selection:
+      primary:
+        - country-mirror
+        - arches: &id001
+            - amd64
+            - i386
+          uri: http://archive.ubuntu.com/ubuntu/
+        - arches: &id002
+            - s390x
+            - arm64
+            - armhf
+            - powerpc
+            - ppc64el
+            - riscv64
+          uri: http://ports.ubuntu.com/ubuntu-ports
+    preserve_sources_list: false
+    security:
+      - arches: *id001
+        uri: http://security.ubuntu.com/ubuntu/
+      - arches: *id002
+        uri: http://ports.ubuntu.com/ubuntu-ports

@@ -1,0 +1,10 @@
+#cloud-config
+# See the autoinstall documentation at:
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html
+#
+hostname: example-host
+manage_etc_hosts: true
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+timezone: Europe/Berlin

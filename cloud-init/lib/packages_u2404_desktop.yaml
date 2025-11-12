@@ -1,0 +1,46 @@
+packages:
+  - curl
+  - dconf-editor
+  - git
+  - gnome-shell-extension-prefs
+  - gnome-tweaks
+  - make
+  - p7zip-full
+  - pipx
+  - qrencode
+  - pwgen
+  - rename
+  - tree
+  - ubuntu-advantage-tools
+  - vim
+  # Selection from normal desktop
+  - deja-dup
+  - file-roller
+  - hyphen-en-us
+  - mythes-en-us
+  - simple-scan
+  # Flatpak support
+  # - Adds Flatpak and Gnome Software to Ubuntu as well
+  # - do `pkill gnome-software` when installing by hand
+  - gnome-software-plugin-flatpak
+  # Language and additional input support
+  - hunspell-de-de
+  - hyphen-de
+  - ibus-chewing
+  - ibus-hangul
+  - ibus-libpinyin
+  - ibus-mozc
+  - mozc-utils-gui
+  - mythes-de
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades
+  - apt-listchanges
+  - mailutils
+  - unattended-upgrades
+  # Cosmetics
+  - breeze-cursor-theme
+  # Server
+  - btop
+  - etckeeper
+  - lm-sensors
+  - needrestart

@@ -1,0 +1,9 @@
+autoinstall:
+  # NOTE: Username, password and hostname are here.
+  identity:
+    hostname: changeme
+    # cspell:disable
+    password: $6$changeme
+    # cspell:enable
+    realname: Firstname Lastname
+    username: fl

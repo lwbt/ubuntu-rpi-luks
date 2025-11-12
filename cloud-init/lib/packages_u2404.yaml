@@ -1,0 +1,22 @@
+packages:
+  - curl
+  - git
+  - make
+  - p7zip-full
+  - pipx
+  - pwgen
+  - qrencode
+  - rename
+  - tree
+  - ubuntu-advantage-tools
+  - vim
+  # https://wiki.debian.org/UnattendedUpgrades
+  # Unattended upgrades
+  - apt-listchanges
+  - mailutils
+  - unattended-upgrades
+  # Server
+  - btop
+  - etckeeper
+  - lm-sensors
+  - needrestart
